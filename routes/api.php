@@ -70,11 +70,49 @@ Route::prefix('v1')->group(function () {
          * 
          * Simulates payment gateway callback.
          * In production, this would be called by Selcom's servers.
-         * 
-         * - Verify callback came from Selcom (IP whitelist + signature)
-         * - Use database transactions for atomicity
-         * - Trigger merchant's webhook asynchronously (queue)
          */
         Route::post('/payment-callback', [CheckoutController::class, 'paymentCallback']);
+        
+        /**
+         * Create full order with all optional fields
+         * POST /api/v1/checkout/create-order
+         */
+        Route::post('/create-order', [CheckoutController::class, 'createOrderFull']);
+        
+        /**
+         * Get stored cards for a buyer
+         * GET /api/v1/checkout/stored-cards?vendor={vendor}&buyer_userid={user_id}
+         */
+        Route::get('/stored-cards', [CheckoutController::class, 'getStoredCards']);
+        
+        /**
+         * Delete stored card
+         * DELETE /api/v1/checkout/delete-card?vendor={vendor}&card_id={card_id}
+         */
+        Route::delete('/delete-card', [CheckoutController::class, 'deleteCard']);
+        
+        /**
+         * Process card payment
+         * POST /api/v1/checkout/card-payment
+         */
+        Route::post('/card-payment', [CheckoutController::class, 'cardPayment']);
+        
+        /**
+         * Process mobile wallet payment
+         * POST /api/v1/checkout/wallet-payment
+         */
+        Route::post('/wallet-payment', [CheckoutController::class, 'walletPayment']);
+        
+        /**
+         * Process SelcomPesa payment
+         * POST /api/v1/checkout/selcompesa-payment
+         */
+        Route::post('/selcompesa-payment', [CheckoutController::class, 'selcomPesaPayment']);
+        
+        /**
+         * Create till alias
+         * POST /api/v1/checkout/create-till-alias
+         */
+        Route::post('/create-till-alias', [CheckoutController::class, 'createTillAlias']);
     });
 });
