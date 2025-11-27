@@ -6,16 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Order Model - Selcom Checkout API Clone
  * 
  * Represents a checkout order following Selcom's payment gateway structure.
- * Reference: https://developers.selcommobile.com/#checkout-api
  * 
- * Interview Points:
- * - Follows real payment gateway patterns (Selcom, Stripe, PayPal)
- * - Demonstrates understanding of payment lifecycle states
- * - Shows knowledge of financial data handling (cents, not floats)
- * - Implements idempotency (vendor + order_id uniqueness)
  */
 class Order extends Model
 {
@@ -67,7 +60,6 @@ class Order extends Model
     /**
      * Generate Selcom-style response format
      * 
-     * Interview note: Payment gateways have standard response structures
      * for consistency across their API
      */
     public function toSelcomResponse(string $result = 'SUCCESS', string $message = 'Order created successfully'): array

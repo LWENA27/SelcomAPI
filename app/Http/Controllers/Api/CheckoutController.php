@@ -9,52 +9,22 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-/**
- * CheckoutController - Selcom Checkout API Clone
- * 
- * Implements three main endpoints following Selcom's specification:
- * 1. POST /checkout/create-order-minimal - Create new order
- * 2. GET /checkout/order-status - Query order status
- * 3. POST /checkout/webhook-callback - Receive payment notifications (simulated)
- * 
- * Interview Points:
- * - RESTful API design
- * - Input validation and sanitization
- * - Idempotency handling (duplicate order prevention)
- * - Proper error handling with meaningful messages
- * - Logging for audit trail
- * - Response format standardization
- */
 class CheckoutController extends Controller
 {
-    /**
-     * Create a new minimal checkout order
-     * 
-     * POST /api/v1/checkout/create-order-minimal
-     * 
-     * Minimal version requires less fields than full order creation,
-     * suitable for mobile wallet payments (no card billing info needed).
-     * 
-     * Interview Discussion:
-     * - Why minimal vs full? Different payment methods have different requirements
-     * - Card payments need billing info, mobile wallets don't
-     * - This flexibility improves UX
-     */
     public function createOrder(Request $request)
     {
-        // Input validation
         $validator = Validator::make($request->all(), [
             'vendor' => 'required|string|max:50',
             'order_id' => 'required|string|max:100',
             'buyer_email' => 'required|email|max:255',
             'buyer_name' => 'required|string|max:255',
             'buyer_phone' => 'required|string|max:20',
-            'amount' => 'required|integer|min:100', // Minimum 1.00 TZS (100 cents)
+            'amount' => 'required|integer|min:100',
             'currency' => 'nullable|string|size:3|in:TZS,USD',
             'buyer_remarks' => 'nullable|string|max:500',
             'merchant_remarks' => 'nullable|string|max:500',
             'no_of_items' => 'nullable|integer|min:1',
-            'expiry' => 'nullable|integer|min:1|max:1440', // Max 24 hours
+            'expiry' => 'nullable|integer|min:1|max:1440',
         ]);
 
         if ($validator->fails()) {
@@ -67,8 +37,7 @@ class CheckoutController extends Controller
 
         $validated = $validator->validated();
 
-        // Check for duplicate order (idempotency)
-        // Interview Gold: This prevents charging customers twice if they retry
+        // Check for duplicate order
         $existingOrder = Order::where('vendor', $validated['vendor'])
             ->where('order_id', $validated['order_id'])
             ->first();
@@ -216,7 +185,6 @@ class CheckoutController extends Controller
      * 
      * For demo/testing purposes, we simulate this endpoint.
      * 
-     * Interview Note: In production, this endpoint would:
      * 1. Be called by Selcom's servers (not customer's browser)
      * 2. Verify the request came from Selcom (signature check)
      * 3. Update order status atomically

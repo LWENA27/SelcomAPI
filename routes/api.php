@@ -12,11 +12,6 @@ use Illuminate\Support\Facades\Route;
  * 1. API Key via Authorization: Bearer {API_KEY}
  * 2. HMAC-SHA256 signature via X-SIGNATURE header
  * 
- * Interview Points:
- * - API versioning (/v1) for backward compatibility
- * - RESTful naming conventions
- * - Proper HTTP verbs (POST for creation, GET for retrieval, DELETE for cancellation)
- * - Middleware protection on sensitive endpoints
  */
 
 Route::prefix('v1')->group(function () {
@@ -76,7 +71,6 @@ Route::prefix('v1')->group(function () {
          * Simulates payment gateway callback.
          * In production, this would be called by Selcom's servers.
          * 
-         * Interview Note: Real implementation would:
          * - Verify callback came from Selcom (IP whitelist + signature)
          * - Use database transactions for atomicity
          * - Trigger merchant's webhook asynchronously (queue)
