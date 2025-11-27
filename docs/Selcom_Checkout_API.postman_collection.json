@@ -1,0 +1,560 @@
+{
+	"info": {
+		"_postman_id": "selcom-checkout-api-2025",
+		"name": "Selcom Checkout API Clone",
+		"description": "Complete Postman collection for testing Selcom-style Checkout API\n\nAuthentication:\n- API Key: Authorization: Bearer sk_live_selcom_test_key_12345678\n- HMAC Signature: X-SIGNATURE header with SHA256 hash\n\nFlow:\n1. Create Order → Get payment_gateway_url\n2. Simulate Payment Callback → Order marked COMPLETED\n3. Query Order Status → Verify completion\n4. Cancel Order (optional)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/v1/health",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "health"]
+				},
+				"description": "Simple health check endpoint to verify API is running"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Create Order (Minimal)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Generate unique order_id",
+							"const orderId = 'ORD-' + Date.now();",
+							"pm.collectionVariables.set('order_id', orderId);",
+							"",
+							"// Get request body",
+							"const requestBody = {",
+							"    vendor: pm.collectionVariables.get('vendor'),",
+							"    order_id: orderId,",
+							"    buyer_email: 'customer@example.com',",
+							"    buyer_name: 'John Doe',",
+							"    buyer_phone: '255712345678',",
+							"    amount: 50000,",
+							"    currency: 'TZS',",
+							"    no_of_items: 2",
+							"};",
+							"",
+							"// Compute HMAC signature",
+							"const secret = pm.collectionVariables.get('api_secret');",
+							"const payload = JSON.stringify(requestBody);",
+							"const signature = CryptoJS.HmacSHA256(payload, secret).toString();",
+							"",
+							"pm.collectionVariables.set('signature', signature);",
+							"pm.collectionVariables.set('request_body', JSON.stringify(requestBody));"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 201', function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test('Response has success result', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.result).to.eql('SUCCESS');",
+							"    pm.expect(jsonData.resultcode).to.eql('000');",
+							"});",
+							"",
+							"pm.test('Order data is present', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.data).to.be.an('array');",
+							"    pm.expect(jsonData.data[0]).to.have.property('order_id');",
+							"    pm.expect(jsonData.data[0]).to.have.property('payment_gateway_url');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "{{signature}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{{request_body}}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/checkout/create-order-minimal",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "checkout", "create-order-minimal"]
+				},
+				"description": "Create a minimal checkout order. \n\n**Required fields:**\n- vendor: Your merchant ID\n- order_id: Unique order identifier\n- buyer_email, buyer_name, buyer_phone\n- amount: In cents (50000 = 500.00 TZS)\n- currency: TZS, USD, etc.\n\n**Authentication:**\n1. API Key in Authorization header\n2. HMAC signature in X-SIGNATURE header"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Get Order Status",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Build query string for signature",
+							"const orderId = pm.collectionVariables.get('order_id');",
+							"const vendor = pm.collectionVariables.get('vendor');",
+							"",
+							"// For GET requests, sign the query parameters",
+							"const queryString = `order_id=${orderId}&vendor=${vendor}`;",
+							"const secret = pm.collectionVariables.get('api_secret');",
+							"const signature = CryptoJS.HmacSHA256(queryString, secret).toString();",
+							"",
+							"pm.collectionVariables.set('signature', signature);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Order status is returned', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.result).to.eql('SUCCESS');",
+							"    pm.expect(jsonData.data[0]).to.have.property('payment_status');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "{{signature}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/checkout/order-status?order_id={{order_id}}&vendor={{vendor}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "checkout", "order-status"],
+					"query": [
+						{
+							"key": "order_id",
+							"value": "{{order_id}}"
+						},
+						{
+							"key": "vendor",
+							"value": "{{vendor}}"
+						}
+					]
+				},
+				"description": "Query the status of an existing order.\n\n**Query Parameters:**\n- order_id: The order ID to check\n- vendor: Your merchant ID\n\n**Response includes:**\n- payment_status: PENDING, COMPLETED, CANCELLED, etc.\n- creation_date, amount, currency\n- transid, channel, reference (if payment completed)"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Payment Callback (Webhook Simulation)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Simulate payment gateway callback",
+							"const orderId = pm.collectionVariables.get('order_id');",
+							"const vendor = pm.collectionVariables.get('vendor');",
+							"",
+							"const requestBody = {",
+							"    order_id: orderId,",
+							"    vendor: vendor,",
+							"    transid: 'TXN-' + Date.now(),",
+							"    channel: 'MPESA-TZ',",
+							"    reference: 'REF-' + Date.now(),",
+							"    result: 'SUCCESS',",
+							"    resultcode: '000'",
+							"};",
+							"",
+							"const secret = pm.collectionVariables.get('api_secret');",
+							"const payload = JSON.stringify(requestBody);",
+							"const signature = CryptoJS.HmacSHA256(payload, secret).toString();",
+							"",
+							"pm.collectionVariables.set('signature', signature);",
+							"pm.collectionVariables.set('request_body', JSON.stringify(requestBody));"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Payment processed successfully', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.result).to.eql('SUCCESS');",
+							"    pm.expect(jsonData.message).to.include('Payment');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "{{signature}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{{request_body}}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/checkout/payment-callback",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "checkout", "payment-callback"]
+				},
+				"description": "Simulates a payment gateway callback notification.\n\nIn production, this would be called by:\n- Mobile money providers (M-Pesa, Airtel Money)\n- Card payment processors\n- Bank systems\n\n**Payload:**\n- order_id, vendor: Identify the order\n- transid: Transaction ID from payment channel\n- channel: Payment method used (MPESA-TZ, AIRTELMONEY, etc.)\n- reference: Gateway reference number\n- result: SUCCESS or FAIL\n- resultcode: Error code"
+			},
+			"response": []
+		},
+		{
+			"name": "5. Cancel Order",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// For DELETE, we still need to sign the query parameters",
+							"const orderId = pm.collectionVariables.get('order_id');",
+							"const vendor = pm.collectionVariables.get('vendor');",
+							"",
+							"const queryString = `order_id=${orderId}&vendor=${vendor}`;",
+							"const secret = pm.collectionVariables.get('api_secret');",
+							"const signature = CryptoJS.HmacSHA256(queryString, secret).toString();",
+							"",
+							"pm.collectionVariables.set('signature', signature);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Order cancelled successfully', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.result).to.eql('SUCCESS');",
+							"    pm.expect(jsonData.message).to.include('cancelled');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "{{signature}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/checkout/cancel-order?order_id={{order_id}}&vendor={{vendor}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "checkout", "cancel-order"],
+					"query": [
+						{
+							"key": "order_id",
+							"value": "{{order_id}}"
+						},
+						{
+							"key": "vendor",
+							"value": "{{vendor}}"
+						}
+					]
+				},
+				"description": "Cancel a pending order.\n\n**Restrictions:**\n- Can only cancel PENDING orders\n- Cannot cancel COMPLETED orders\n- Expired orders cannot be cancelled\n\n**Use case:**\n- Customer abandons checkout\n- Merchant wants to void order\n- Inventory not available"
+			},
+			"response": []
+		},
+		{
+			"name": "6. List Orders (Date Range)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Set date range for query",
+							"const today = new Date();",
+							"const yesterday = new Date(today);",
+							"yesterday.setDate(yesterday.getDate() - 7);",
+							"",
+							"const fromDate = yesterday.toISOString().split('T')[0];",
+							"const toDate = today.toISOString().split('T')[0];",
+							"",
+							"pm.collectionVariables.set('from_date', fromDate);",
+							"pm.collectionVariables.set('to_date', toDate);",
+							"",
+							"// Sign the query",
+							"const vendor = pm.collectionVariables.get('vendor');",
+							"const queryString = `vendor=${vendor}&fromdate=${fromDate}&todate=${toDate}`;",
+							"const secret = pm.collectionVariables.get('api_secret');",
+							"const signature = CryptoJS.HmacSHA256(queryString, secret).toString();",
+							"",
+							"pm.collectionVariables.set('signature', signature);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 200', function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Orders list returned', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.result).to.eql('SUCCESS');",
+							"    pm.expect(jsonData.data).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "{{signature}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/checkout/list-orders?vendor={{vendor}}&fromdate={{from_date}}&todate={{to_date}}",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "checkout", "list-orders"],
+					"query": [
+						{
+							"key": "vendor",
+							"value": "{{vendor}}"
+						},
+						{
+							"key": "fromdate",
+							"value": "{{from_date}}",
+							"description": "YYYY-MM-DD format"
+						},
+						{
+							"key": "todate",
+							"value": "{{to_date}}",
+							"description": "YYYY-MM-DD format"
+						}
+					]
+				},
+				"description": "Retrieve all orders for a vendor within a date range.\n\n**Query Parameters:**\n- vendor: Your merchant ID\n- fromdate: Start date (YYYY-MM-DD)\n- todate: End date (YYYY-MM-DD)\n\n**Use cases:**\n- Daily reconciliation\n- Financial reporting\n- Order management dashboard"
+			},
+			"response": []
+		},
+		{
+			"name": "7. Test Invalid Signature",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 401 Unauthorized', function () {",
+							"    pm.response.to.have.status(401);",
+							"});",
+							"",
+							"pm.test('Error message mentions signature', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.message).to.include('signature');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{api_key}}",
+						"type": "text"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "invalid_signature_12345",
+						"type": "text",
+						"description": "Intentionally wrong signature"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/health",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "health"]
+				},
+				"description": "**Security Test:** Verify that invalid HMAC signatures are rejected.\n\nThis demonstrates:\n- Request integrity verification\n- Protection against tampering\n- Proper error handling"
+			},
+			"response": []
+		},
+		{
+			"name": "8. Test Invalid API Key",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Status code is 401 Unauthorized', function () {",
+							"    pm.response.to.have.status(401);",
+							"});",
+							"",
+							"pm.test('Error message mentions API key', function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData.message).to.include('API key');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer wrong_api_key",
+						"type": "text",
+						"description": "Intentionally wrong API key"
+					},
+					{
+						"key": "X-SIGNATURE",
+						"value": "{{signature}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/v1/health",
+					"host": ["{{base_url}}"],
+					"path": ["api", "v1", "health"]
+				},
+				"description": "**Security Test:** Verify that invalid API keys are rejected.\n\nThis demonstrates:\n- Authentication enforcement\n- Protection against unauthorized access\n- Proper error responses"
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		},
+		{
+			"key": "api_key",
+			"value": "sk_live_selcom_test_key_12345678",
+			"type": "string"
+		},
+		{
+			"key": "api_secret",
+			"value": "whsec_hmac_secret_key_987654321",
+			"type": "string"
+		},
+		{
+			"key": "vendor",
+			"value": "SHOP203",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "signature",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "request_body",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "from_date",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "to_date",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

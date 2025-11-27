@@ -1,0 +1,34 @@
+feat: Complete Selcom Checkout API implementation
+
+Implemented production-grade payment gateway API following Selcom's
+Checkout API specification for technical interview demonstration.
+
+Features:
+- RESTful API with 5 endpoints (create, status, callback, cancel, list)
+- Two-layer authentication (API Key + HMAC-SHA256 signature)
+- Selcom-compliant order lifecycle management
+- Financial data handling with integer-based amounts
+- Idempotent order creation with composite unique keys
+- Comprehensive request validation using Form Requests
+- Production-ready error handling and logging
+
+Security:
+- HMAC signature verification with constant-time comparison
+- API key authentication via Bearer token
+- Mass assignment protection and SQL injection prevention
+- Rate limiting middleware
+
+Documentation:
+- Complete API reference with curl examples
+- Interview preparation guide with technical Q&A
+- Postman collection with auto-signature generation
+- Professional README with project overview
+
+Testing:
+- Automated bash test script covering all endpoints
+- Postman tests with response validation
+- Security tests for invalid credentials
+
+Tech Stack: Laravel 12.40.2, PHP 8.1+, MySQL 8.0
+
+Interview-ready with comprehensive documentation and working demo.
